@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>席替えアプリ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo','Segoe UI',sans-serif;font-size:14px;background:#f4f6f8;color:#333;height:100vh;display:grid;grid-template-rows:auto auto 1fr;overflow:hidden}
+
+.privacy-bar{background:#e8f4fd;border-bottom:1px solid #bee3f8;padding:5px 16px;font-size:11px;color:#1a6a8a;display:flex;align-items:center;gap:6px}
+.privacy-bar::before{content:"🔒"}
+
+header{background:#2d6a4f;color:white;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:17px;font-weight:bold}
+header a{color:#a8d5b5;font-size:12px;text-decoration:none;border:1px solid #a8d5b5;padding:3px 9px;border-radius:4px}
+header a:hover{background:rgba(255,255,255,.15)}
+
+.app{display:grid;grid-template-columns:320px 1fr;min-height:0;overflow:hidden}
+
+/* ─── Left Panel ─── */
+.left-panel{min-width:260px;overflow-y:auto;background:white;border-right:1px solid #ddd;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:0}
+
+.section{border:1px solid #e0e0e0;border-radius:6px;overflow:hidden}
+.section-hdr{background:#f5f5f5;padding:7px 10px;font-weight:bold;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.section-hdr:hover{background:#eee}
+.section-body{padding:10px;display:flex;flex-direction:column;gap:7px}
+.section-body.collapsed{display:none}
+
+label{font-size:12px;color:#555}
+input[type=number],input[type=text],select{padding:5px 7px;border:1px solid #ccc;border-radius:4px;font-size:13px}
+input[type=number]{width:65px}
+input[type=text]{width:100%}
+select{width:100%}
+
+button{padding:5px 11px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500}
+.btn-primary{background:#2d6a4f;color:white}.btn-primary:hover{background:#245a42}
+.btn-secondary{background:#6c757d;color:white}.btn-secondary:hover{background:#5a6268}
+.btn-danger{background:#dc3545;color:white}.btn-danger:hover{background:#c82333}
+.btn-info{background:#0d7cba;color:white}.btn-info:hover{background:#0a6399}
+.btn-success{background:#28a745;color:white}.btn-success:hover{background:#218838}
+.btn-sm{padding:3px 8px;font-size:11px}
+
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+.chk-grp{display:flex;flex-direction:column;gap:4px}
+.chk-grp label{display:flex;align-items:center;gap:5px;cursor:pointer;color:#333;font-size:12px}
+
+/* Seat editor (mini) */
+.editor-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:4px}
+.editor-bb{background:#444;color:white;padding:2px 14px;font-size:10px;border-radius:2px;letter-spacing:1px}
+.editor-grid{display:grid;gap:2px}
+.ec{width:26px;height:22px;border:1px solid #bbb;border-radius:2px;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;background:#e8f5e9;transition:background .1s}
+.ec.dis{background:#ccc;color:#888}
+.ec:hover{opacity:.75}
+
+/* Student list */
+.s-list{max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:4px}
+.s-item{padding:4px 8px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.s-item:last-child{border-bottom:none}
+.s-item:nth-child(even){background:#fafafa}
+.s-name{font-weight:bold;font-size:12px}
+.s-meta{color:#888;font-size:10px}
+
+.radio-grp{display:flex;gap:12px}
+.radio-grp label{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#333}
+
+.run-btn{width:100%;padding:10px;font-size:14px;font-weight:bold;background:#2d6a4f;color:white;border:none;border-radius:6px;cursor:pointer;margin-top:4px}
+.run-btn:hover{background:#245a42}
+
+.msg{padding:7px 10px;border-radius:4px;font-size:12px;margin-top:2px}
+.msg.err{background:#ffe0e0;color:#c00;border:1px solid #f5c6c6}
+.msg.ok{background:#e0ffe0;color:#060;border:1px solid #c6f5c6}
+
+/* ─── Right Panel ─── */
+.right-panel{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px}
+
+#mapArea{display:flex;flex-direction:column;align-items:center;gap:8px}
+
+.bb-bar{background:#333;color:white;padding:6px 40px;font-size:13px;border-radius:4px;letter-spacing:3px}
+
+.seat-grid{display:grid;gap:6px}
+.seat{width:78px;height:62px;border:2px solid #ccc;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;background:white}
+.seat.occ{background:#e8f5e9;border-color:#4caf50}
+.seat.occ.male{background:#e3f2fd;border-color:#2196f3}
+.seat.occ.female{background:#fce4ec;border-color:#e91e63}
+.seat.occ.other{background:#f3e5f5;border-color:#9c27b0}
+.seat.dis{background:#eee;border-color:#bbb;color:#aaa}
+.seat.empty{background:#fafafa}
+.seat-name{font-weight:bold;font-size:12px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;line-height:1.2}
+.seat-sub{font-size:10px;color:#888;text-align:center;line-height:1.2}
+.seat-badges{display:flex;gap:2px;flex-wrap:wrap;justify-content:center}
+.seat-badge{font-size:9px;padding:0 4px;border-radius:8px;background:#fef3c7;color:#92400e;line-height:1.5}
+
+.action-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+/* ─── Drag & Drop ─── */
+.seat[draggable=true]{cursor:grab}
+.seat[draggable=true]:hover{box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.seat.dragging{opacity:.35;cursor:grabbing}
+.seat.drag-over{outline:2px dashed #2d6a4f;outline-offset:1px;background:#e8f5e9!important}
+
+/* Modal */
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:white;border-radius:8px;padding:18px;width:420px;max-width:90vw;max-height:85vh;overflow-y:auto}
+.modal h3{margin-bottom:12px;font-size:15px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.fg{display:flex;flex-direction:column;gap:3px;margin-bottom:9px}
+.fg label{font-size:12px;color:#555}
+.fg .hint{font-size:10px;color:#aaa;margin-top:1px}
+
+.hidden{display:none!important}
+
+/* ─── Help Modal ─── */
+.help-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:24px 16px}
+.help-dialog{background:#f0f4f0;border-radius:12px;width:100%;max-width:860px;position:relative;padding-bottom:24px}
+.help-dialog-hdr{background:#2d6a4f;color:white;padding:12px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center}
+.help-dialog-hdr h2{font-size:16px;font-weight:bold}
+.help-close{background:none;border:1px solid rgba(255,255,255,.5);color:white;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:13px}
+.help-close:hover{background:rgba(255,255,255,.15)}
+.hb{padding:0 20px}
+.hb .card{background:white;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-top:16px}
+.hb .card-title{font-size:15px;font-weight:bold;color:#2d6a4f;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.hb .card-sub{font-size:13px;color:#666;margin-bottom:12px;line-height:1.6}
+.hb h3{font-size:13px;font-weight:bold;color:#444;margin:14px 0 6px}
+.hb .steps{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.hb .step{display:flex;gap:10px;align-items:flex-start}
+.hb .step-num{background:#2d6a4f;color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;margin-top:2px}
+.hb .step-body{flex:1;font-size:13px}
+.hb .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 12px;font-size:12px;color:#1e40af;margin-top:10px}
+.hb .tip::before{content:"💡  "}
+.hb .info{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:9px 12px;font-size:12px;color:#166534;margin-top:10px}
+.hb .info::before{content:"✅  "}
+.hb .file-list{display:flex;flex-direction:column;gap:8px}
+.hb .file-item{display:flex;align-items:flex-start;gap:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px}
+.hb .file-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+.hb .file-name{font-weight:bold;font-size:12px;color:#2d6a4f}
+.hb .file-desc{font-size:12px;color:#555;margin-top:2px}
+.hb .file-tags{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+.hb .tag{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:bold}
+.hb .tag-in{background:#dbeafe;color:#1e40af}
+.hb .tag-out{background:#dcfce7;color:#166534}
+.hb .sheet-wrap{overflow-x:auto;margin-bottom:4px}
+.hb .sheet{border-collapse:collapse;font-size:12px;min-width:100%}
+.hb .sheet .row-num{background:#f5f5f5;color:#aaa;font-size:10px;text-align:center;padding:0 6px;border:1px solid #ddd;min-width:26px;user-select:none}
+.hb .sheet thead th{background:#217346;color:white;padding:6px 10px;border:1px solid #1a5c38;text-align:left;white-space:nowrap;font-size:12px}
+.hb .sheet thead th.row-num{background:#e8e8e8;color:#aaa}
+.hb .sheet tbody tr:nth-child(even){background:#f9f9f9}
+.hb .sheet tbody td{padding:5px 10px;border:1px solid #e0e0e0;white-space:nowrap;font-size:12px}
+.hb .sheet tbody td.empty{color:#ccc;background:#fafafa}
+.hb .bm{display:inline-block;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:10px;font-size:11px}
+.hb .bf{display:inline-block;background:#fce7f3;color:#9d174d;padding:1px 6px;border-radius:10px;font-size:11px}
+.hb .bg{display:inline-block;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;font-size:11px;font-weight:bold}
+.hb .bx{display:inline-block;background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:10px;font-size:11px}
+.hb .num{text-align:center;color:#1e40af;font-weight:bold}
+.hb .nc{color:#6b7280;font-size:11px;font-style:italic}
+.hb .copy-row{display:flex;align-items:center;gap:10px;margin-top:6px}
+.hb .copy-btn{background:#2d6a4f;color:white;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px}
+.hb .copy-btn:hover{background:#245a42}
+.hb .copy-note{font-size:11px;color:#888}
+.hb .gender-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.hb .gl-item{display:flex;align-items:center;gap:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;font-size:12px}
+.hb .qa{display:flex;flex-direction:column;gap:12px}
+.hb .q{font-weight:bold;font-size:13px;color:#333;margin-bottom:2px}
+.hb .q::before{content:"Q.  ";color:#2d6a4f}
+.hb .a{font-size:13px;color:#555;padding-left:22px}
+
+/* ─── Print ─── */
+@media print{
+  .left-panel,.action-bar,.privacy-bar,header{display:none!important}
+  .right-panel{padding:0}
+  body{overflow:visible;height:auto}
+  .app{overflow:visible;display:block}
+  .seat{width:65px;height:54px;border:1px solid #999;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .seat-name{font-size:10px}
+  .bb-bar{background:#333!important;color:white!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="privacy-bar">
+  このアプリは完全にローカルで動作します。入力された情報はインターネット上に一切送信されません。
+</div>
+
+<header>
+  <h1>席替えアプリ</h1>
+  <button onclick="openHelp()" style="background:none;border:1px solid #a8d5b5;color:#a8d5b5;padding:3px 9px;border-radius:4px;cursor:pointer;font-size:12px">📄 使い方・ヘルプ</button>
+</header>
+
+<div class="app">
+
+  <!-- ===== Left Panel ===== -->
+  <div class="left-panel">
+
+    <!-- CSV -->
+    <div class="section">
+      <div class="section-hdr" onclick="toggleSection(this)">CSVデータ管理 <span>▲</span></div>
+      <div class="section-body">
+        <div class="row">
+          <button class="btn-info" onclick="importStudentsPrompt()">📂 生徒データ読み込み</button>
+          <button class="btn-secondary" onclick="exportStudentsCSV()">💾 生徒データ書き出し</button>
+        </div>
+        <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="handleCSVFile(event)">
+        <div style="font-size:10px;color:#999">生徒データをCSVで管理</div>
+      </div>
+    </div>
+
+    <!-- Layout -->
+    <div class="section">
+      <div class="section-hdr" onclick="toggleSection(this)">レイアウト設定 <span>▲</span></div>
+      <div class="section-body">
+        <div class="row">
+          <div><label>行数(前後)</label><br><input type="number" id="rowCount" min="1" max="20" value="6"></div>
+          <div><label>列数(左右)</label><br><input type="number" id="colCount" min="1" max="20" value="6"></div>
+          <button class="btn-secondary btn-sm" style="margin-top:14px" onclick="generateLayout()">生成</button>
+        </div>
+        <div style="font-size:10px;color:#888">席をクリック → 使用不可切替</div>
+        <div id="seatEditor"></div>
+      </div>
+    </div>
+
+    <!-- Students -->
+    <div class="section">
+      <div class="section-hdr" onclick="toggleSection(this)">生徒管理 <span>▲</span></div>
+      <div class="section-body">
+        <div id="studentList" class="s-list"></div>
+        <button class="btn-primary btn-sm" style="margin-top:5px" onclick="openStudentModal()">＋ 生徒追加</button>
+      </div>
+    </div>
+
+    <!-- Rules -->
+    <div class="section">
+      <div class="section-hdr" onclick="toggleSection(this)">配置ルール <span>▲</span></div>
+      <div class="section-body">
+        <label>男女バランスモード</label>
+        <div class="radio-grp">
+          <label><input type="radio" name="balMode" value="checkerboard" checked> 市松模様</label>
+          <label><input type="radio" name="balMode" value="random"> 完全ランダム</label>
+        </div>
+        <div style="font-size:10px;color:#888">同じグループの生徒は周囲8マス以内に配置しません</div>
+      </div>
+    </div>
+
+    <!-- Display -->
+    <div class="section">
+      <div class="section-hdr" onclick="toggleSection(this)">表示設定 <span>▲</span></div>
+      <div class="section-body">
+        <label>表示する情報</label>
+        <div class="chk-grp">
+          <label><input type="checkbox" id="disp_gender" onchange="updateDisplay()"> 性別を色分けして表示</label>
+          <label><input type="checkbox" id="disp_groups" onchange="updateDisplay()"> グループIDを表示</label>
+          <label><input type="checkbox" id="disp_constraints" onchange="updateDisplay()"> 配置制約を表示</label>
+        </div>
+        <label style="margin-top:4px">黒板の位置</label>
+        <div class="radio-grp">
+          <label><input type="radio" name="boardPos" value="top" onchange="updateDisplay()"> 上</label>
+          <label><input type="radio" name="boardPos" value="bottom" onchange="updateDisplay()"> 下</label>
+        </div>
+      </div>
+    </div>
+
+    <div id="runMsg"></div>
+    <button class="run-btn" onclick="runAssignment()">🔀 席替えする</button>
+
+  </div>
+
+  <!-- ===== Right Panel ===== -->
+  <div class="right-panel">
+    <div id="mapArea"></div>
+    <div class="action-bar">
+      <button class="btn-success" onclick="exportResultCSV()">📄 結果CSV書き出し</button>
+      <button class="btn-secondary" onclick="window.print()">🖨 印刷</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Student Modal -->
+<div id="studentModal" class="overlay hidden">
+  <div class="modal">
+    <h3 id="s-modal-title">生徒を追加</h3>
+    <div class="fg">
+      <label>名前</label>
+      <input type="text" id="s_name" placeholder="山田太郎">
+    </div>
+    <div class="fg">
+      <label>性別</label>
+      <select id="s_gender">
+        <option value="male">男</option>
+        <option value="female">女</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>前から何行以内（空欄で制限なし）</label>
+      <input type="number" id="s_frontRows" min="1" placeholder="例: 3">
+      <div class="hint">例: 3 → 前から1〜3行目の席のみに配置</div>
+    </div>
+    <div class="fg">
+      <label>中央から何列以内（空欄で制限なし）</label>
+      <input type="number" id="s_centerCols" min="0" placeholder="例: 1">
+      <div class="hint">例: 1 → 中央列±1列以内の席のみに配置</div>
+    </div>
+    <div class="fg">
+      <label>分離グループ（カンマ区切りで複数指定可）</label>
+      <input type="text" id="s_groups" placeholder="例: A,B（空欄でグループなし）">
+      <div class="hint">同じグループの生徒同士は周囲8マス以内に配置しません</div>
+    </div>
+    <div class="fg">
+      <label>固定席（空欄で固定なし）</label>
+      <div class="row">
+        <div><label>行</label><br><input type="number" id="s_fixedRow" min="1" placeholder="—"></div>
+        <div><label>列</label><br><input type="number" id="s_fixedCol" min="1" placeholder="—"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeStudentModal()">キャンセル</button>
+      <button class="btn-primary" onclick="saveStudent()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="help-overlay hidden">
+  <div class="help-dialog">
+    <div class="help-dialog-hdr">
+      <h2>📋 使い方・データの入力方法</h2>
+      <button class="help-close" onclick="closeHelp()">✕ 閉じる</button>
+    </div>
+    <div class="hb">
+
+      <div class="card">
+        <div class="card-title"><span>📁</span> データはExcelで管理できます</div>
+        <div class="card-sub">生徒の情報を <strong>Excelファイル（CSV形式）</strong> で保存・読み込みできます。毎回入力し直す必要がなく、Excelで編集して読み込むだけでOKです。</div>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body">Excelで下記の表のとおりにデータを入力します</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body">「名前を付けて保存」→ <strong>「CSV UTF-8（コンマ区切り）」</strong> で保存します</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body">アプリの「📂 生徒データ読み込み」ボタンから読み込みます</div></div>
+        </div>
+        <div class="tip">「💾 生徒データ書き出し」ボタンで現在のデータをCSVとしてダウンロードできます。そのままExcelで開いて編集できます。</div>
+        <h3 style="margin-top:16px">📄 ファイルの種類</h3>
+        <div class="file-list">
+          <div class="file-item"><div class="file-icon">👨‍🎓</div><div><div class="file-name">生徒データ.csv</div><div class="file-desc">生徒の名前・性別・座席の制約・グループなど</div><div class="file-tags"><span class="tag tag-in">読み込み可</span><span class="tag tag-out">書き出し可</span></div></div></div>
+          <div class="file-item"><div class="file-icon">📊</div><div><div class="file-name">席替え結果.csv</div><div class="file-desc">席替えの結果（どの席に誰が座るか）。読み込みには使いません。</div><div class="file-tags"><span class="tag tag-out">書き出しのみ</span></div></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>👨‍🎓</span> 生徒データの入力方法</div>
+        <div class="card-sub">1行に1人ずつ入力します。<strong>1行目はそのままコピーして使ってください</strong>（列の見出し行です）。</div>
+        <h3>✏️ 入力例</h3>
+        <div class="sheet-wrap">
+          <table class="sheet">
+            <thead><tr><th class="row-num"></th><th>名前</th><th>性別</th><th>前から何行以内</th><th>中央から何列以内</th><th>分離グループ</th><th>固定席（行）</th><th>固定席（列）</th></tr></thead>
+            <tbody>
+              <tr><td class="row-num">2</td><td>山田太郎</td><td><span class="bm">男</span></td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">3</td><td>鈴木花子</td><td><span class="bf">女</span></td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">4</td><td>田中次郎</td><td><span class="bm">男</span></td><td class="num">3</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">5</td><td>佐藤美咲</td><td><span class="bf">女</span></td><td class="empty">—</td><td class="num">1</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">6</td><td>伊藤健太</td><td><span class="bm">男</span></td><td class="num">2</td><td class="num">1</td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">7</td><td>渡辺さくら</td><td><span class="bf">女</span></td><td class="empty">—</td><td class="empty">—</td><td><span class="bg">A</span></td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">8</td><td>中村遥</td><td><span class="bm">男</span></td><td class="empty">—</td><td class="empty">—</td><td><span class="bg">A</span></td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">9</td><td>小林大輝</td><td><span class="bm">男</span></td><td class="empty">—</td><td class="empty">—</td><td><span class="bg">A;B</span></td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">10</td><td>加藤凛</td><td><span class="bf">女</span></td><td class="empty">—</td><td class="empty">—</td><td><span class="bg">B</span></td><td class="empty">—</td><td class="empty">—</td></tr>
+              <tr><td class="row-num">11</td><td>吉田誠</td><td><span class="bm">男</span></td><td class="empty">—</td><td class="empty">—</td><td class="empty">—</td><td><span class="bx">1</span></td><td><span class="bx">3</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="copy-row">
+          <button class="copy-btn" id="h-copy-btn" onclick="helpCopyCSV()">📋 CSVテキストをコピー</button>
+          <span class="copy-note">メモ帳などで直接編集したい場合にどうぞ</span>
+        </div>
+        <h3>📝 各列の説明</h3>
+        <div class="sheet-wrap">
+          <table class="sheet">
+            <thead><tr><th>列の名前</th><th>必須?</th><th>説明</th><th>空欄の場合</th></tr></thead>
+            <tbody>
+              <tr><td><strong>名前</strong></td><td style="text-align:center;color:#dc2626">必須</td><td>生徒のフルネームなど識別できれば何でもOK</td><td>その行は無視されます</td></tr>
+              <tr><td><strong>性別</strong></td><td style="text-align:center;color:#dc2626">必須</td><td>男 / 女 / その他 のいずれかを入力</td><td>「その他」として扱われます</td></tr>
+              <tr><td><strong>前から何行以内</strong></td><td style="text-align:center;color:#6b7280">任意</td><td>視力が弱いなど前の席が必要な場合に数字を入力<br>例: 3 → 前から1〜3行目だけに配置</td><td>どの行でもOK</td></tr>
+              <tr><td><strong>中央から何列以内</strong></td><td style="text-align:center;color:#6b7280">任意</td><td>補聴器など中央付近が必要な場合に数字を入力<br>例: 1 → 中央列±1列以内だけに配置</td><td>どの列でもOK</td></tr>
+              <tr><td><strong>分離グループ</strong></td><td style="text-align:center;color:#6b7280">任意</td><td>同じグループ名の生徒同士は離れた席になります<br>複数グループは <code>A;B</code> のようにセミコロンで区切る</td><td>グループなし</td></tr>
+              <tr><td><strong>固定席（行）・（列）</strong></td><td style="text-align:center;color:#6b7280">任意</td><td>この生徒を必ずこの席に置く場合に指定（行・列の両方必要）</td><td>固定なし</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>🚻 性別の入力値</h3>
+        <div class="gender-legend">
+          <div class="gl-item"><span class="bm">男</span> → 男の子</div>
+          <div class="gl-item"><span class="bf">女</span> → 女の子</div>
+          <div class="gl-item">その他 → それ以外</div>
+        </div>
+        <h3 style="margin-top:14px">🤝 分離グループについて</h3>
+        <div class="info">同じグループ名をつけた生徒同士は、縦・横・斜めのどの方向にも隣り合わない席に配置されます。グループ名は「A」「B」「兄弟」など自由に決められます。1人が複数グループに所属することもできます（例: <code>A;B</code>）。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>📊</span> 結果の書き出し</div>
+        <div class="card-sub">「📄 結果CSV書き出し」ボタンで席替え結果をExcelで開けるファイルとして保存できます。</div>
+        <div class="sheet-wrap">
+          <table class="sheet">
+            <thead><tr><th class="row-num"></th><th>行番号</th><th>列番号</th><th>名前</th><th>性別</th><th>分離グループ</th></tr></thead>
+            <tbody>
+              <tr><td class="row-num">2</td><td class="num">1</td><td class="num">1</td><td>吉田誠</td><td><span class="bm">男</span></td><td class="empty">—</td></tr>
+              <tr><td class="row-num">3</td><td class="num">1</td><td class="num">2</td><td>鈴木花子</td><td><span class="bf">女</span></td><td class="empty">—</td></tr>
+              <tr><td class="row-num">4</td><td class="num">2</td><td class="num">1</td><td>渡辺さくら</td><td><span class="bf">女</span></td><td><span class="bg">A</span></td></tr>
+              <tr><td class="row-num">…</td><td class="nc">…</td><td class="nc">…</td><td class="nc">…</td><td class="nc">…</td><td class="nc">…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info">行番号 1 = 黒板に一番近い前の行、列番号 1 = 左端の列です。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>❓</span> よくある質問</div>
+        <div class="qa">
+          <div><div class="q">「有効な配置が見つかりませんでした」と表示されました</div><div class="a">グループの分離ルールや「前から何行以内」の制限が厳しすぎる可能性があります。設定を少し緩めてから再度お試しください。</div></div>
+          <div><div class="q">生徒数が席数より少ない場合はどうなりますか？</div><div class="a">余った席は空席のまま表示されます。問題なく使えます。</div></div>
+          <div><div class="q">市松模様モードにしたけど完全に交互になりません</div><div class="a">男女の人数が異なる場合や配置制約がある場合は完全な市松模様にならないことがあります。できる限り近い形で配置されます。</div></div>
+          <div><div class="q">「中央から何列以内」は具体的にどの席ですか？</div><div class="a">列の中央を基準に左右に広げた範囲です。6列クラスで「1」を指定すると3・4列目、「2」で2〜5列目が対象になります。</div></div>
+          <div><div class="q">データはどこに保存されていますか？</div><div class="a">ブラウザの内部に保存されています。インターネットには送信されません。ブラウザのデータをリセットすると消えるため、<strong>定期的に「💾 生徒データ書き出し」でバックアップを取ることをお勧めします。</strong></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+let state = {
+  layout: { rows: 6, cols: 6, disabled: [] },
+  students: [],
+  balanceMode: 'checkerboard',
+  display: { showGender: true, showGroups: true, showConstraints: true, boardBottom: false },
+  lastResult: null,
+};
+let editingStudentId = null;
+
+// ========== INIT ==========
+document.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  // Restore UI controls from state
+  const bm = document.querySelector(`input[name=balMode][value="${state.balanceMode||'checkerboard'}"]`);
+  if (bm) bm.checked = true;
+  const d = state.display || {};
+  document.getElementById('disp_gender').checked      = d.showGender      !== false;
+  document.getElementById('disp_groups').checked      = d.showGroups      !== false;
+  document.getElementById('disp_constraints').checked = d.showConstraints !== false;
+  const bp = document.querySelector(`input[name=boardPos][value="${d.boardBottom ? 'bottom' : 'top'}"]`);
+  if (bp) bp.checked = true;
+  renderSeatEditor();
+  renderStudentList();
+  renderSeatMap();
+  // Drag and drop (event delegation on right panel)
+  const rp = document.querySelector('.right-panel');
+  rp.addEventListener('dragstart', handleDragStart);
+  rp.addEventListener('dragend',   handleDragEnd);
+  rp.addEventListener('dragover',  handleDragOver);
+  rp.addEventListener('drop',      handleDrop);
+});
+
+// ========== STORAGE ==========
+function saveState() { localStorage.setItem('sekigae_v2', JSON.stringify(state)); }
+function loadState() {
+  try {
+    const s = localStorage.getItem('sekigae_v2');
+    if (s) {
+      const p = JSON.parse(s);
+      state = { ...state, ...p };
+      if (!state.display) state.display = { showGender:true, showGroups:true, showConstraints:true, boardBottom:false };
+      if (!Array.isArray(state.layout.disabled)) state.layout.disabled = [];
+      if (!Array.isArray(state.students)) state.students = [];
+    }
+  } catch(e) {}
+}
+
+// ========== UI UTILS ==========
+function toggleSection(hdr) {
+  const body = hdr.nextElementSibling;
+  body.classList.toggle('collapsed');
+  hdr.querySelector('span').textContent = body.classList.contains('collapsed') ? '▼' : '▲';
+}
+function showMsg(text, type) {
+  const el = document.getElementById('runMsg');
+  el.innerHTML = `<div class="msg ${type}">${text}</div>`;
+  if (type === 'ok') setTimeout(() => el.innerHTML = '', 3000);
+}
+function esc(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function gLabel(g) { return g==='male'?'男':g==='female'?'女':'他'; }
+// Internal gender <-> CSV Japanese
+const GENDER_TO_JP  = { male:'男', female:'女', other:'その他' };
+const GENDER_FROM_JP = { '男':'male','女':'female','その他':'other' };
+function toGenderInternal(v) { return GENDER_FROM_JP[v] || (['male','female','other'].includes(v) ? v : 'other'); }
+
+// ========== DISPLAY SETTINGS ==========
+function updateDisplay() {
+  state.display.showGender      = document.getElementById('disp_gender').checked;
+  state.display.showGroups      = document.getElementById('disp_groups').checked;
+  state.display.showConstraints = document.getElementById('disp_constraints').checked;
+  state.display.boardBottom     = document.querySelector('input[name=boardPos]:checked').value === 'bottom';
+  saveState();
+  renderSeatMap();
+  renderSeatEditor();
+}
+
+// ========== LAYOUT ==========
+function generateLayout() {
+  const r = Math.min(20, Math.max(1, parseInt(document.getElementById('rowCount').value)||6));
+  const c = Math.min(20, Math.max(1, parseInt(document.getElementById('colCount').value)||6));
+  state.layout = { rows: r, cols: c, disabled: [] };
+  saveState(); renderSeatEditor(); renderSeatMap();
+}
+function isDis(row, col) { return state.layout.disabled.some(d => d.row===row && d.col===col); }
+function toggleDis(row, col) {
+  const idx = state.layout.disabled.findIndex(d => d.row===row && d.col===col);
+  if (idx >= 0) state.layout.disabled.splice(idx, 1);
+  else state.layout.disabled.push({ row, col });
+  saveState(); renderSeatEditor(); renderSeatMap();
+}
+function renderSeatEditor() {
+  const { rows, cols } = state.layout;
+  const bottom = state.display.boardBottom;
+  document.getElementById('rowCount').value = rows;
+  document.getElementById('colCount').value = cols;
+  const grid = `<div class="editor-grid" style="grid-template-columns:repeat(${cols},26px)">` +
+    Array.from({length: rows}, (_,ri) => {
+      const r = bottom ? rows - ri : ri + 1;
+      return Array.from({length: cols}, (_,ci) => {
+        const c = ci + 1, d = isDis(r, c);
+        return `<div class="ec${d?' dis':''}" onclick="toggleDis(${r},${c})" title="${r}行${c}列">${d?'×':''}</div>`;
+      }).join('');
+    }).join('') + `</div>`;
+  const bb = `<div class="editor-bb">黒板（前）</div>`;
+  document.getElementById('seatEditor').innerHTML =
+    `<div class="editor-wrap">${bottom ? grid + bb : bb + grid}</div>`;
+}
+
+// ========== SEAT MAP ==========
+function renderSeatMap() {
+  const { rows, cols } = state.layout;
+  const d = state.display;
+  const lkp = {};
+  if (state.lastResult)
+    state.lastResult.assignments.forEach(a => { lkp[`${a.row},${a.col}`] = a; });
+
+  let gridHtml = '';
+  // Render rows top-to-bottom; if boardBottom, start from row N down to 1 so row1 is near board
+  const rowOrder = Array.from({length: rows}, (_,i) => d.boardBottom ? rows - i : i + 1);
+  for (const r of rowOrder) {
+    for (let c = 1; c <= cols; c++) {
+      if (isDis(r, c)) {
+        gridHtml += `<div class="seat dis">—</div>`;
+      } else {
+        const a = lkp[`${r},${c}`];
+        if (a) {
+          const genderClass = d.showGender ? ` ${esc(a.gender)}` : '';
+          const subParts = [];
+          if (d.showGroups && a.groups && a.groups.length) subParts.push(`[${esc(a.groups.join(','))}]`);
+          const badges = [];
+          if (d.showConstraints) {
+            // Look up student for constraint info
+            const stu = state.students.find(s => s.name === a.name);
+            if (stu) {
+              if (stu.frontRows) badges.push(`前${stu.frontRows}行`);
+              if (stu.centerCols !== null && stu.centerCols !== undefined) badges.push(`中±${stu.centerCols}`);
+            }
+          }
+          const badgeHtml = badges.length
+            ? `<div class="seat-badges">${badges.map(b=>`<span class="seat-badge">${b}</span>`).join('')}</div>` : '';
+          gridHtml += `<div class="seat occ${genderClass}" draggable="true" data-row="${r}" data-col="${c}">
+            <div class="seat-name" title="${esc(a.name)}">${esc(a.name)}</div>
+            ${subParts.length ? `<div class="seat-sub">${subParts.join(' ')}</div>` : ''}
+            ${badgeHtml}
+          </div>`;
+        } else {
+          gridHtml += `<div class="seat empty" data-row="${r}" data-col="${c}"><span style="color:#ccc;font-size:10px">${r}-${c}</span></div>`;
+        }
+      }
+    }
+  }
+
+  const grid = `<div id="seatMap" class="seat-grid" style="grid-template-columns:repeat(${cols},78px)">${gridHtml}</div>`;
+  const bb   = `<div class="bb-bar">■ 黒 板 ■</div>`;
+  document.getElementById('mapArea').innerHTML = d.boardBottom ? grid + bb : bb + grid;
+}
+
+// ========== STUDENTS ==========
+function renderStudentList() {
+  const el = document.getElementById('studentList');
+  if (!state.students.length) {
+    el.innerHTML = '<div style="padding:8px;color:#aaa;font-size:11px">生徒が登録されていません</div>';
+    return;
+  }
+  el.innerHTML = state.students.map(s => {
+    const constraints = [];
+    if (s.frontRows) constraints.push(`前${s.frontRows}行`);
+    if (s.centerCols != null && s.centerCols !== '') constraints.push(`中央±${s.centerCols}列`);
+    const fixedText = (s.fixedRow && s.fixedCol) ? ` 固定:${s.fixedRow}-${s.fixedCol}` : '';
+    const grpText = (s.groups && s.groups.length) ? ` G:${s.groups.join(',')}` : '';
+    return `<div class="s-item">
+      <div>
+        <div class="s-name">${esc(s.name)}</div>
+        <div class="s-meta">${gLabel(s.gender)}${grpText}${constraints.length?' ['+constraints.join('/')+']':''}${fixedText}</div>
+      </div>
+      <div class="row">
+        <button class="btn-secondary btn-sm" onclick="openStudentModal('${s.id}')">編集</button>
+        <button class="btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openStudentModal(id = null) {
+  editingStudentId = id;
+  document.getElementById('s-modal-title').textContent = id ? '生徒を編集' : '生徒を追加';
+  if (id) {
+    const s = state.students.find(s => s.id === id);
+    document.getElementById('s_name').value = s.name;
+    document.getElementById('s_gender').value = s.gender;
+    document.getElementById('s_frontRows').value = s.frontRows || '';
+    document.getElementById('s_centerCols').value = s.centerCols != null ? s.centerCols : '';
+    document.getElementById('s_groups').value = (s.groups || []).join(',');
+    document.getElementById('s_fixedRow').value = s.fixedRow || '';
+    document.getElementById('s_fixedCol').value = s.fixedCol || '';
+  } else {
+    ['s_name','s_frontRows','s_centerCols','s_groups','s_fixedRow','s_fixedCol']
+      .forEach(i => { document.getElementById(i).value = ''; });
+    document.getElementById('s_gender').value = 'male';
+  }
+  document.getElementById('studentModal').classList.remove('hidden');
+}
+function closeStudentModal() {
+  document.getElementById('studentModal').classList.add('hidden');
+  editingStudentId = null;
+}
+function parseGroups(str) {
+  return str.split(/[,;]/).map(g => g.trim()).filter(Boolean);
+}
+function saveStudent() {
+  const name = document.getElementById('s_name').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  const fv = document.getElementById('s_frontRows').value;
+  const cv = document.getElementById('s_centerCols').value;
+  const data = {
+    name,
+    gender: document.getElementById('s_gender').value,
+    frontRows: fv !== '' ? parseInt(fv)||null : null,
+    centerCols: cv !== '' ? parseInt(cv) : null,
+    groups: parseGroups(document.getElementById('s_groups').value),
+    fixedRow: parseInt(document.getElementById('s_fixedRow').value)||null,
+    fixedCol: parseInt(document.getElementById('s_fixedCol').value)||null,
+  };
+  if (editingStudentId) {
+    const idx = state.students.findIndex(s => s.id === editingStudentId);
+    if (idx >= 0) state.students[idx] = { ...state.students[idx], ...data };
+  } else {
+    state.students.push({ id: genId(), ...data });
+  }
+  saveState(); renderStudentList(); closeStudentModal();
+}
+function deleteStudent(id) {
+  if (!confirm('この生徒を削除しますか？')) return;
+  state.students = state.students.filter(s => s.id !== id);
+  saveState(); renderStudentList();
+}
+
+// ========== ASSIGNMENT ==========
+function sharesGroup(s1, s2) {
+  if (!s1.groups || !s2.groups || !s1.groups.length || !s2.groups.length) return false;
+  return s1.groups.some(g => s2.groups.includes(g));
+}
+function isColInCenter(col, centerCols, totalCols) {
+  if (centerCols === null || centerCols === undefined || centerCols === '') return true;
+  return Math.abs(col - (totalCols + 1) / 2) <= centerCols;
+}
+function runAssignment() {
+  state.balanceMode = document.querySelector('input[name=balMode]:checked').value;
+  const { rows, cols } = state.layout;
+  if (!state.students.length) { showMsg('生徒が登録されていません', 'err'); return; }
+  const availCount = rows * cols - state.layout.disabled.length;
+  if (state.students.length > availCount) {
+    showMsg(`生徒数(${state.students.length})が利用可能な席数(${availCount})を超えています`, 'err');
+    return;
+  }
+  for (let i = 0; i < 300; i++) {
+    const res = attempt();
+    if (res.success) {
+      state.lastResult = { assignments: res.assignments };
+      saveState(); renderSeatMap();
+      showMsg('席替えが完了しました！', 'ok');
+      return;
+    }
+  }
+  showMsg('有効な配置が見つかりませんでした。ルール（グループ分離・行列制限など）を見直してください。', 'err');
+}
+function attempt() {
+  const { rows, cols } = state.layout;
+  let avail = [];
+  for (let r = 1; r <= rows; r++)
+    for (let c = 1; c <= cols; c++)
+      if (!isDis(r, c)) avail.push({ row: r, col: c });
+  shuffle(avail);
+  const placed = {}, usedIds = new Set();
+  for (const s of state.students) {
+    if (s.fixedRow && s.fixedCol) {
+      const key = `${s.fixedRow},${s.fixedCol}`;
+      if (isDis(s.fixedRow, s.fixedCol) || placed[key]) return { success: false };
+      placed[key] = s; usedIds.add(s.id);
+      avail = avail.filter(x => !(x.row === s.fixedRow && x.col === s.fixedCol));
+    }
+  }
+  let remaining = state.students.filter(s => !usedIds.has(s.id)).map(s => ({
+    ...s,
+    _score: (s.frontRows ? 1000/s.frontRows : 0)
+          + (s.centerCols !== null && s.centerCols !== undefined ? 100/(s.centerCols+1) : 0)
+          + (s.groups && s.groups.length ? 10 : 0)
+  }));
+  remaining.sort((a, b) => b._score - a._score);
+  let maleParity = null;
+  if (state.balanceMode === 'checkerboard') {
+    const mc = remaining.filter(s => s.gender==='male').length;
+    const fc = remaining.filter(s => s.gender==='female').length;
+    const p0 = avail.filter(s => (s.row+s.col)%2===0).length;
+    maleParity = (mc>=fc) ? (p0>=avail.length-p0?0:1) : (p0>=avail.length-p0?1:0);
+  }
+  for (const student of remaining) {
+    let valid = avail.filter(seat => {
+      if (student.frontRows && seat.row > student.frontRows) return false;
+      if (!isColInCenter(seat.col, student.centerCols, cols)) return false;
+      if (student.groups && student.groups.length) {
+        for (const [key, ps] of Object.entries(placed)) {
+          if (sharesGroup(ps, student)) {
+            const [pr, pc] = key.split(',').map(Number);
+            if (Math.abs(pr-seat.row)<=1 && Math.abs(pc-seat.col)<=1) return false;
+          }
+        }
+      }
+      return true;
+    });
+    if (!valid.length) return { success: false };
+    let seat;
+    if (maleParity !== null && (student.gender==='male' || student.gender==='female')) {
+      const pref = student.gender==='male' ? maleParity : 1-maleParity;
+      const preferred = valid.filter(s => (s.row+s.col)%2===pref);
+      seat = preferred.length > 0 ? preferred[0] : valid[0];
+    } else { seat = valid[0]; }
+    placed[`${seat.row},${seat.col}`] = student;
+    avail = avail.filter(x => !(x.row===seat.row && x.col===seat.col));
+  }
+  return { success: true, assignments: Object.entries(placed).map(([key,s]) => {
+    const [row,col] = key.split(',').map(Number);
+    return { row, col, name: s.name, gender: s.gender, groups: s.groups||[] };
+  })};
+}
+function shuffle(arr) {
+  for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+
+// ========== CSV EXPORT ==========
+function exportStudentsCSV() {
+  const rows = [['名前','性別','前から何行以内','中央から何列以内','分離グループ','固定席（行）','固定席（列）']];
+  for (const s of state.students) {
+    rows.push([
+      s.name,
+      GENDER_TO_JP[s.gender] || s.gender,
+      s.frontRows ?? '', s.centerCols ?? '',
+      (s.groups||[]).join(';'),
+      s.fixedRow??'', s.fixedCol??''
+    ]);
+  }
+  dlCSV('生徒データ.csv', rows);
+}
+function exportResultCSV() {
+  if (!state.lastResult) { alert('まだ席替えが実行されていません'); return; }
+  const rows = [['行番号','列番号','名前','性別','分離グループ']];
+  const sorted = [...state.lastResult.assignments].sort((a,b)=>a.row-b.row||a.col-b.col);
+  for (const a of sorted)
+    rows.push([a.row, a.col, a.name, GENDER_TO_JP[a.gender]||a.gender, (a.groups||[]).join(';')]);
+  dlCSV('席替え結果.csv', rows);
+}
+function dlCSV(filename, rows) {
+  const content = '\uFEFF' + rows.map(r => r.map(v => {
+    const s = String(v??'');
+    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8;'}));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ========== CSV IMPORT ==========
+function importStudentsPrompt() {
+  document.getElementById('csvFile').click();
+}
+function handleCSVFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text = ev.target.result.replace(/^\uFEFF/,'');
+    try {
+      importStudents(text);
+      saveState(); renderStudentList(); renderSeatMap();
+      alert('インポートが完了しました');
+    } catch(err) { alert('読み込みエラー: ' + err.message); }
+  };
+  reader.readAsText(file,'UTF-8'); e.target.value = '';
+}
+function parseCSV(text) {
+  return text.split(/\r?\n/).filter(l=>l.trim()).map(line => {
+    const cols=[]; let cur='', inQ=false;
+    for (let i=0;i<line.length;i++) {
+      const ch=line[i];
+      if (inQ){if(ch==='"'&&line[i+1]==='"'){cur+='"';i++;}else if(ch==='"')inQ=false;else cur+=ch;}
+      else{if(ch==='"')inQ=true;else if(ch===','){cols.push(cur.trim());cur='';}else cur+=ch;}
+    }
+    cols.push(cur.trim()); return cols;
+  });
+}
+function importStudents(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('データが空です');
+  const h = rows[0];
+  // Support both Japanese and English column names
+  const col = name => {
+    const aliases = {
+      '名前':['名前','name'],
+      '性別':['性別','gender'],
+      '前':['前から何行以内','front_rows'],
+      '中央':['中央から何列以内','center_cols'],
+      'グループ':['分離グループ','groups'],
+      '固定行':['固定席（行）','fixed_row'],
+      '固定列':['固定席（列）','fixed_col'],
+    };
+    const list = aliases[name] || [name];
+    for (const alias of list) { const i = h.indexOf(alias); if (i>=0) return i; }
+    return -1;
+  };
+  const ni=col('名前'), gni=col('性別'), fri=col('前'), cci=col('中央'),
+        gri=col('グループ'), frii=col('固定行'), fcii=col('固定列');
+  if (ni < 0) throw new Error('「名前」列が見つかりません');
+  state.students = rows.slice(1).filter(r=>r[ni]).map(r => ({
+    id: genId(),
+    name: r[ni],
+    gender: toGenderInternal(r[gni] || 'other'),
+    frontRows: (fri>=0 && r[fri]!=='') ? parseInt(r[fri])||null : null,
+    centerCols: (cci>=0 && r[cci]!=='') ? parseInt(r[cci]) : null,
+    groups: (gri>=0 && r[gri]) ? r[gri].split(/[;,]/).map(g=>g.trim()).filter(Boolean) : [],
+    fixedRow: (frii>=0 && r[frii]) ? parseInt(r[frii])||null : null,
+    fixedCol: (fcii>=0 && r[fcii]) ? parseInt(r[fcii])||null : null,
+  }));
+}
+
+// ========== HELP MODAL ==========
+function openHelp() { document.getElementById('helpModal').classList.remove('hidden'); }
+function closeHelp() { document.getElementById('helpModal').classList.add('hidden'); }
+function helpCopyCSV() {
+  const lines = [
+    '名前,性別,前から何行以内,中央から何列以内,分離グループ,固定席（行）,固定席（列）',
+    '山田太郎,男,,,,,',
+    '鈴木花子,女,,,,,',
+    '田中次郎,男,3,,,,',
+    '佐藤美咲,女,,1,,,',
+    '伊藤健太,男,2,1,,,',
+    '渡辺さくら,女,,,A,,',
+    '中村遥,男,,,A,,',
+    '小林大輝,男,,,A;B,,',
+    '加藤凛,女,,,B,,',
+    '吉田誠,男,,,,,1,3',
+  ];
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    const btn = document.getElementById('h-copy-btn');
+    btn.textContent = '✅ コピーしました';
+    setTimeout(() => { btn.textContent = '📋 CSVテキストをコピー'; }, 2000);
+  }).catch(() => alert('コピーに失敗しました'));
+}
+
+// ========== DRAG & DROP ==========
+let dragSrc = null;
+
+function handleDragStart(e) {
+  const seat = e.target.closest('.seat[draggable=true]');
+  if (!seat) return;
+  dragSrc = { row: +seat.dataset.row, col: +seat.dataset.col };
+  seat.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function handleDragEnd() {
+  dragSrc = null;
+  document.querySelectorAll('.seat.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.seat.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+function handleDragOver(e) {
+  const seat = e.target.closest('.seat:not(.dis)');
+  if (!seat || !dragSrc) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.seat.drag-over').forEach(el => el.classList.remove('drag-over'));
+  seat.classList.add('drag-over');
+}
+function handleDrop(e) {
+  const seat = e.target.closest('.seat:not(.dis)');
+  if (!seat || !dragSrc) return;
+  e.preventDefault();
+  const destRow = +seat.dataset.row, destCol = +seat.dataset.col;
+  if (destRow === dragSrc.row && destCol === dragSrc.col) return;
+  swapSeats(dragSrc.row, dragSrc.col, destRow, destCol);
+}
+function swapSeats(r1, c1, r2, c2) {
+  if (!state.lastResult) return;
+  const a = state.lastResult.assignments;
+  const i1 = a.findIndex(x => x.row===r1 && x.col===c1);
+  const i2 = a.findIndex(x => x.row===r2 && x.col===c2);
+  if (i1 >= 0 && i2 >= 0) {
+    [a[i1].row, a[i2].row] = [a[i2].row, a[i1].row];
+    [a[i1].col, a[i2].col] = [a[i2].col, a[i1].col];
+  } else if (i1 >= 0) {
+    a[i1].row = r2; a[i1].col = c2;
+  } else if (i2 >= 0) {
+    a[i2].row = r1; a[i2].col = c1;
+  }
+  saveState();
+  renderSeatMap();
+}
+</script>
+</body>
+</html>
