@@ -165,6 +165,23 @@ button{padding:5px 11px;border:none;border-radius:4px;cursor:pointer;font-size:1
 .hb .q::before{content:"Q.  ";color:#2d6a4f}
 .hb .a{font-size:13px;color:#555;padding-left:22px}
 
+/* ─── Mobile ─── */
+@media (max-width:700px){
+  body{height:auto;min-height:100svh;overflow-y:auto;display:flex;flex-direction:column}
+  .app{display:flex;flex-direction:column;overflow:visible;min-height:unset}
+  .left-panel{width:100%;min-width:unset;height:auto;min-height:unset;overflow-y:visible;border-right:none;border-bottom:1px solid #ddd}
+  .right-panel{overflow:visible;padding:12px 8px}
+  #mapArea{overflow-x:auto;width:100%;align-items:flex-start}
+  .seat{width:62px;height:54px}
+  .seat-name{font-size:10px;max-width:58px}
+  input[type=number],input[type=text],select{font-size:16px}
+  .run-btn{position:sticky;bottom:8px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .action-bar{flex-direction:column;align-items:stretch}
+  .action-bar button{width:100%;padding:10px}
+  .modal{width:95vw;max-height:90vh}
+  .help-dialog{max-width:100%}
+}
+
 /* ─── Print ─── */
 @media print{
   .left-panel,.action-bar,.privacy-bar,header{display:none!important}
